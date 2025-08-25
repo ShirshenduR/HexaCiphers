@@ -121,7 +121,6 @@ The challenge is to **build an AI-driven system that can detect and analyze Anti
 │   ├── models/           # NLP + Graph models
 │   ├── detection/        # Campaign & bot detection logic
 │   └── dashboard/        # Frontend + API
-├── tests/                # Unit tests
 ├── requirements.txt      
 ├── README.md             
 └── deployment/           # Dockerfiles, cloud configs
