@@ -11,12 +11,13 @@ class Post(db.Model):
     
     id = Column(Integer, primary_key=True)
     platform = Column(String(50), nullable=False)  # Twitter, Reddit, etc.
-    user_id = Column(String(100), nullable=False)
+    user_id = Column(String(100), nullable=True)  # Made nullable for URL analysis
     content = Column(Text, nullable=False)
     language = Column(String(10))
     translated_text = Column(Text)
     sentiment = Column(String(20))  # positive, neutral, negative
     classification = Column(String(20))  # Pro-India, Neutral, Anti-India
+    url = Column(String(500))  # URL of the original post
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Foreign key relationship
@@ -34,6 +35,7 @@ class Post(db.Model):
             'translated_text': self.translated_text,
             'sentiment': self.sentiment,
             'classification': self.classification,
+            'url': self.url,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
