@@ -5,8 +5,9 @@ Handles text cleaning, language detection, translation, and preprocessing
 
 import re
 import logging
-from typing import Dict, List, Optional
-from langdetect import detect, LangDetectError
+from typing import Dict, List
+from langdetect import detect
+from langdetect.lang_detect_exception import LangDetectException
 import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
@@ -58,125 +59,41 @@ class TextProcessor:
         ]
     
     def clean_text(self, text: str) -> str:
-        """
-        Clean text by removing URLs, mentions, extra whitespace
-        
-        Args:
-            text (str): Input text to clean
-            
-        Returns:
-            str: Cleaned text
-        """
         if not text:
             return ""
-        
-        # Convert to lowercase
         text = text.lower()
-        
-        # Remove URLs
         text = self.url_pattern.sub('', text)
-        
-        # Remove email addresses
         text = self.email_pattern.sub('', text)
-        
-        # Remove mentions (keep hashtags for analysis)
         text = self.mention_pattern.sub('', text)
-        
-        # Remove extra whitespace
         text = re.sub(r'\s+', ' ', text)
-        
-        # Remove special characters but keep basic punctuation
         text = re.sub(r'[^\w\s#@.,!?-]', '', text)
-        
         return text.strip()
     
     def extract_hashtags(self, text: str) -> List[str]:
-        """
-        Extract hashtags from text
-        
-        Args:
-            text (str): Input text
-            
-        Returns:
-            List[str]: List of hashtags
-        """
-        hashtags = self.hashtag_pattern.findall(text)
-        return [tag.lower() for tag in hashtags]
+        return [tag.lower() for tag in self.hashtag_pattern.findall(text)]
     
     def extract_mentions(self, text: str) -> List[str]:
-        """
-        Extract mentions from text
-        
-        Args:
-            text (str): Input text
-            
-        Returns:
-            List[str]: List of mentions
-        """
-        mentions = self.mention_pattern.findall(text)
-        return [mention.lower() for mention in mentions]
+        return [mention.lower() for mention in self.mention_pattern.findall(text)]
     
     def detect_language(self, text: str) -> str:
-        """
-        Detect language of text
-        
-        Args:
-            text (str): Input text
-            
-        Returns:
-            str: Detected language code
-        """
         if not text or len(text.strip()) < 3:
             return 'unknown'
-        
         try:
             return detect(text)
-        except LangDetectError:
+        except LangDetectException:
             return 'unknown'
     
     def remove_stopwords(self, text: str, language: str = 'english') -> str:
-        """
-        Remove stopwords from text
-        
-        Args:
-            text (str): Input text
-            language (str): Language for stopwords
-            
-        Returns:
-            str: Text without stopwords
-        """
         if not text:
             return ""
-        
         words = word_tokenize(text)
-        
-        # Get appropriate stopwords
-        if language in self.stopwords:
-            stop_words = self.stopwords[language]
-        else:
-            stop_words = self.stopwords['general']
-        
+        stop_words = self.stopwords.get(language, self.stopwords['general'])
         filtered_words = [word for word in words if word.lower() not in stop_words]
         return ' '.join(filtered_words)
     
     def translate_text(self, text: str, target_language: str = 'en') -> str:
-        """
-        Translate text to target language (stub implementation)
-        
-        Args:
-            text (str): Text to translate
-            target_language (str): Target language code
-            
-        Returns:
-            str: Translated text (currently returns original for stub)
-        """
-        # This is a stub implementation
-        # In production, you would use Google Translate API or similar service
         logger.info(f"Translation requested: {target_language}")
-        
-        # Simple keyword translation for demonstration
         if target_language == 'en':
-            # Basic Hindi to English translation for common words
             translations = {
                 'भारत': 'India',
                 'देश': 'country',
@@ -184,59 +101,27 @@ class TextProcessor:
                 'लोग': 'people',
                 'समाज': 'society'
             }
-            
             for hindi, english in translations.items():
                 text = text.replace(hindi, english)
-        
         return text
     
     def extract_keywords(self, text: str) -> List[str]:
-        """
-        Extract important keywords from text
-        
-        Args:
-            text (str): Input text
-            
-        Returns:
-            List[str]: List of keywords
-        """
         if not text:
             return []
-        
-        # Clean and tokenize
         cleaned_text = self.clean_text(text)
         words = word_tokenize(cleaned_text)
-        
-        # Filter meaningful words (length > 2)
         keywords = [word.lower() for word in words if len(word) > 2 and word.isalpha()]
-        
-        # Remove stopwords
         keywords = [word for word in keywords if word not in self.stopwords.get('english', set())]
-        
-        return list(set(keywords))  # Remove duplicates
+        return list(set(keywords))
     
     def get_sentiment_indicators(self, text: str) -> Dict[str, int]:
-        """
-        Get sentiment indicators from text
-        
-        Args:
-            text (str): Input text
-            
-        Returns:
-            Dict[str, int]: Dictionary with sentiment indicators
-        """
         if not text:
             return {'positive': 0, 'negative': 0, 'neutral': 0}
-        
         text_lower = text.lower()
-        
-        # Simple sentiment indicators
         positive_words = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'love', 'like', 'happy', 'proud']
         negative_words = ['bad', 'terrible', 'awful', 'hate', 'dislike', 'angry', 'sad', 'disappointed']
-        
         positive_count = sum(1 for word in positive_words if word in text_lower)
         negative_count = sum(1 for word in negative_words if word in text_lower)
-        
         return {
             'positive': positive_count,
             'negative': negative_count,
@@ -244,26 +129,11 @@ class TextProcessor:
         }
     
     def classify_india_relation(self, text: str) -> str:
-        """
-        Classify text relation to India
-        
-        Args:
-            text (str): Input text
-            
-        Returns:
-            str: Classification (Pro-India, Anti-India, Neutral)
-        """
         if not text:
             return 'Neutral'
-        
         text_lower = text.lower()
-        
-        # Check for anti-India indicators
         anti_score = sum(1 for keyword in self.anti_india_keywords if keyword in text_lower)
-        
-        # Check for pro-India indicators
         pro_score = sum(1 for keyword in self.pro_india_keywords if keyword in text_lower)
-        
         if anti_score > pro_score and anti_score > 0:
             return 'Anti-India'
         elif pro_score > anti_score and pro_score > 0:
@@ -272,15 +142,6 @@ class TextProcessor:
             return 'Neutral'
     
     def process_text(self, text: str) -> Dict:
-        """
-        Complete text processing pipeline
-        
-        Args:
-            text (str): Input text to process
-            
-        Returns:
-            Dict: Comprehensive processing results
-        """
         if not text:
             return {
                 'original_text': '',
@@ -293,8 +154,6 @@ class TextProcessor:
                 'india_classification': 'Neutral',
                 'translated_text': ''
             }
-        
-        # Basic processing
         cleaned_text = self.clean_text(text)
         language = self.detect_language(text)
         hashtags = self.extract_hashtags(text)
@@ -302,12 +161,7 @@ class TextProcessor:
         keywords = self.extract_keywords(text)
         sentiment_indicators = self.get_sentiment_indicators(text)
         india_classification = self.classify_india_relation(text)
-        
-        # Translation (if not English)
-        translated_text = text
-        if language != 'en' and language != 'unknown':
-            translated_text = self.translate_text(text, 'en')
-        
+        translated_text = text if language == 'en' or language == 'unknown' else self.translate_text(text, 'en')
         return {
             'original_text': text,
             'cleaned_text': cleaned_text,
