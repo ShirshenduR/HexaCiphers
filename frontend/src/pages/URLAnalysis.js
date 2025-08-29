@@ -66,14 +66,10 @@ const URLAnalysis = ({ darkMode }) => {
   };
 
   const getPlatformIcon = (platform) => {
-    const icons = {
-      'Twitter': '🐦',
-      'Reddit': '🤖',
-      'Facebook': '📘',
-      'Instagram': '📸',
-      'YouTube': '🎥',
-    };
-    return icons[platform] || '🌐';
+    if (platform === 'Twitter') {
+      return '🐦';
+    }
+    return '🌐'; // fallback icon
   };
 
   return (
@@ -107,7 +103,7 @@ const URLAnalysis = ({ darkMode }) => {
                 type="url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://twitter.com/user/status/123... or https://reddit.com/r/india/comments/..."
+                placeholder="https://twitter.com/user/status/123... or https://x.com/user/status/..."
                 className={`flex-1 ${darkMode ? 'input-modern-dark' : 'input-modern'}`}
                 disabled={loading}
               />
@@ -142,14 +138,12 @@ const URLAnalysis = ({ darkMode }) => {
 
           {/* Supported Platforms */}
           <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-            <h3 className="text-sm font-semibold text-white/80 mb-2">Supported Platforms:</h3>
+            <h3 className="text-sm font-semibold text-white/80 mb-2">Supported Platform:</h3>
             <div className="flex flex-wrap gap-2">
-              {['Twitter', 'Reddit', 'Facebook', 'Instagram', 'YouTube'].map((platform) => (
-                <span key={platform} className="inline-flex items-center space-x-1 px-3 py-1 rounded-lg bg-white/10 text-white/80 text-xs font-medium">
-                  <span>{getPlatformIcon(platform)}</span>
-                  <span>{platform}</span>
-                </span>
-              ))}
+              <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-lg bg-white/10 text-white/80 text-xs font-medium">
+                <span>{getPlatformIcon('Twitter')}</span>
+                <span>Twitter / X</span>
+              </span>
             </div>
           </div>
         </div>
