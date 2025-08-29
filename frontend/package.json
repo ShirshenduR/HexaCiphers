@@ -1,0 +1,46 @@
+{
+  "name": "hexaciphers-frontend",
+  "version": "1.0.0",
+  "description": "HexaCiphers Anti-India Campaign Detection Dashboard",
+  "private": true,
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "axios": "^1.5.0",
+    "recharts": "^2.8.0",
+    "d3": "^7.8.5",
+    "lucide-react": "^0.263.1",
+    "react-router-dom": "^6.15.0"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.3.3",
+    "autoprefixer": "^10.4.15",
+    "postcss": "^8.4.29"
+  },
+  "proxy": "http://localhost:5000"
+}

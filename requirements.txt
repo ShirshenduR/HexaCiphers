@@ -1,0 +1,41 @@
+# Backend Dependencies
+Flask==2.3.3
+Flask-CORS==4.0.0
+Flask-SQLAlchemy==3.0.5
+Flask-Migrate==4.0.5
+psycopg2-binary==2.9.7
+python-dotenv==1.0.0
+
+# Machine Learning & NLP
+torch==2.0.1
+transformers==4.33.2
+sentence-transformers==2.2.2
+scikit-learn==1.3.0
+numpy==1.24.3
+pandas==2.0.3
+
+# Text Processing
+nltk==3.8.1
+textblob==0.17.1
+langdetect==1.0.9
+
+# Image & Audio Processing
+Pillow==10.0.0
+pytesseract==0.3.10
+opencv-python==4.8.0.76
+
+# Graph Analysis
+networkx==3.1
+matplotlib==3.7.2
+seaborn==0.12.2
+
+# API & Data Collection
+requests==2.31.0
+tweepy==4.14.0
+praw==7.7.1
+beautifulsoup4==4.12.2
+
+# Utilities
+python-dateutil==2.8.2
+celery==5.3.1
+redis==4.6.0
