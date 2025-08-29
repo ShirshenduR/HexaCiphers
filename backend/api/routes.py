@@ -230,7 +230,7 @@ def get_users():
 
 @api_bp.route('/analyze-url', methods=['POST'])
 def analyze_url():
-    """Analyze a social media post by URL"""
+    """Analyze a Twitter post by URL"""
     try:
         data = request.get_json()
         url = data.get('url', '')
@@ -241,7 +241,7 @@ def analyze_url():
         # Detect platform from URL
         platform = detect_platform_from_url(url)
         if not platform:
-            return jsonify({'status': 'error', 'message': 'Unsupported platform or invalid URL'}), 400
+            return jsonify({'status': 'error', 'message': 'Only Twitter/X URLs are supported for analysis'}), 400
         
         # Extract content from URL (simulated)
         content_data = extract_content_from_url(url, platform)
@@ -291,84 +291,40 @@ def analyze_url():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 def detect_platform_from_url(url):
-    """Detect social media platform from URL"""
+    """Detect Twitter platform from URL - only Twitter/X URLs are supported"""
     url_lower = url.lower()
     
     if 'twitter.com' in url_lower or 'x.com' in url_lower:
         return 'Twitter'
-    elif 'reddit.com' in url_lower:
-        return 'Reddit'
-    elif 'facebook.com' in url_lower or 'fb.com' in url_lower:
-        return 'Facebook'
-    elif 'instagram.com' in url_lower:
-        return 'Instagram'
-    elif 'youtube.com' in url_lower or 'youtu.be' in url_lower:
-        return 'YouTube'
     
     return None
 
 def extract_content_from_url(url, platform):
-    """Extract content from social media URL (simulated)"""
-    # In a real implementation, this would use platform APIs or web scraping
-    # For now, we'll simulate the content extraction
+    """Extract content from Twitter URL (simulated)"""
+    # In a real implementation, this would use Twitter APIs or web scraping
+    # For now, we'll simulate the content extraction for Twitter only
     
-    sample_contents = {
-        'Twitter': [
-            {
-                'content': 'India is becoming a global superpower! Amazing progress in technology and space exploration. #ProudIndian #Technology #ISRO',
-                'hashtags': ['#ProudIndian', '#Technology', '#ISRO'],
-                'engagement': {'likes': 245, 'shares': 12, 'comments': 8}
-            },
-            {
-                'content': 'Another propaganda piece about India. The reality is very different from what they show. Wake up people! #Truth #Reality',
-                'hashtags': ['#Truth', '#Reality'],
-                'engagement': {'likes': 89, 'shares': 23, 'comments': 45}
-            },
-            {
-                'content': 'Today I visited the beautiful Red Fort in Delhi. The architecture is absolutely stunning! #Travel #India #Heritage',
-                'hashtags': ['#Travel', '#India', '#Heritage'],
-                'engagement': {'likes': 156, 'shares': 7, 'comments': 12}
-            }
-        ],
-        'Reddit': [
-            {
-                'content': 'Discussion about India\'s economic policies and their impact on global markets. The new initiatives seem promising.',
-                'hashtags': ['#Economy', '#Policy'],
-                'engagement': {'likes': 67, 'shares': 5, 'comments': 34}
-            },
-            {
-                'content': 'Why does India always get special treatment in international forums? This bias needs to stop.',
-                'hashtags': ['#International', '#Politics'],
-                'engagement': {'likes': 23, 'shares': 8, 'comments': 67}
-            }
-        ],
-        'Facebook': [
-            {
-                'content': 'Celebrating India\'s 77th Independence Day! Jai Hind! 🇮🇳',
-                'hashtags': ['#IndependenceDay', '#JaiHind'],
-                'engagement': {'likes': 342, 'shares': 45, 'comments': 23}
-            }
-        ],
-        'Instagram': [
-            {
-                'content': 'Beautiful sunset at Marine Drive, Mumbai. India has some amazing views! 📸✨',
-                'hashtags': ['#Mumbai', '#India', '#Sunset'],
-                'engagement': {'likes': 892, 'shares': 34, 'comments': 56}
-            }
-        ],
-        'YouTube': [
-            {
-                'content': 'New documentary about India\'s space achievements. ISRO is doing incredible work!',
-                'hashtags': ['#ISRO', '#Space', '#Documentary'],
-                'engagement': {'likes': 1567, 'shares': 123, 'comments': 234}
-            }
-        ]
-    }
+    twitter_sample_contents = [
+        {
+            'content': 'India is becoming a global superpower! Amazing progress in technology and space exploration. #ProudIndian #Technology #ISRO',
+            'hashtags': ['#ProudIndian', '#Technology', '#ISRO'],
+            'engagement': {'likes': 245, 'shares': 12, 'comments': 8}
+        },
+        {
+            'content': 'Another propaganda piece about India. The reality is very different from what they show. Wake up people! #Truth #Reality',
+            'hashtags': ['#Truth', '#Reality'],
+            'engagement': {'likes': 89, 'shares': 23, 'comments': 45}
+        },
+        {
+            'content': 'Today I visited the beautiful Red Fort in Delhi. The architecture is absolutely stunning! #Travel #India #Heritage',
+            'hashtags': ['#Travel', '#India', '#Heritage'],
+            'engagement': {'likes': 156, 'shares': 7, 'comments': 12}
+        }
+    ]
     
-    # Return a random sample content for the platform
+    # Return a random sample content for Twitter
     import random
-    platform_contents = sample_contents.get(platform, sample_contents['Twitter'])
-    return random.choice(platform_contents)
+    return random.choice(twitter_sample_contents)
 
 def calculate_risk_score(classification_result, content_data):
     """Calculate risk score based on classification and engagement"""
