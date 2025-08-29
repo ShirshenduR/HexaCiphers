@@ -1,40 +1,21 @@
-version: '3.8'
+version: '3'
 
 services:
-  web:
+  twitter-analysis:
     build: .
     ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql://hexaciphers:password@db:5432/hexaciphers
-    depends_on:
-      - db
-      - redis
+      - "8050:8050"
     volumes:
-      - ./models:/app/models
-
-  db:
-    image: postgres:13
+      - ./data:/app/data
+      - ./visualizations:/app/visualizations
+      - ./alerts:/app/alerts
     environment:
-      - POSTGRES_DB=hexaciphers
-      - POSTGRES_USER=hexaciphers
-      - POSTGRES_PASSWORD=password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-
-  redis:
-    image: redis:6-alpine
-    ports:
-      - "6379:6379"
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:3000"
-    depends_on:
-      - web
-
-volumes:
-  postgres_data:
+      - TWITTER_API_KEY=${TWITTER_API_KEY}
+      - TWITTER_API_SECRET=${TWITTER_API_SECRET}
+      - TWITTER_ACCESS_TOKEN=${TWITTER_ACCESS_TOKEN}
+      - TWITTER_ACCESS_SECRET=${TWITTER_ACCESS_SECRET}
+      - TWITTER_BEARER_TOKEN=${TWITTER_BEARER_TOKEN}
+      - DEBUG=False
+      - ALERT_THRESHOLD=10
+      - ENGAGEMENT_THRESHOLD=100
+      - SCAN_INTERVAL=300
