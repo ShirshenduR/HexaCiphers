@@ -11,6 +11,9 @@ from backend.models.classifier import SentimentClassifier
 from backend.detection.campaign_detector import CampaignDetector
 from backend.api.data_collector import data_collector
 import logging
+import tweepy
+import os
+import re
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -414,22 +417,60 @@ def extract_content_from_url(url, platform):
                 'engagement': {'likes': 0, 'shares': 0, 'comments': 0}
             }
         
-        # Use Twitter API to fetch tweet
+        # Use Twitter API to fetch tweet with aggressive timeout handling
         if hasattr(data_collector, 'twitter_api') and data_collector.twitter_api:
             try:
-                # Fetch tweet using Twitter API v2
-                tweet = data_collector.twitter_api.get_tweet(
-                    tweet_id,
-                    tweet_fields=['created_at', 'author_id', 'public_metrics', 'lang'],
-                    user_fields=['username', 'public_metrics'],
-                    expansions=['author_id']
+                # Create a temporary client with wait_on_rate_limit=False to avoid long waits
+                temp_client = tweepy.Client(
+                    bearer_token=os.getenv('TWITTER_BEARER_TOKEN'),
+                    wait_on_rate_limit=False  # Don't wait on rate limits for URL analysis
                 )
                 
-                if tweet.data:
+                # Use threading to implement a hard timeout
+                import threading
+                import time
+                
+                result = {'tweet': None, 'error': None}
+                
+                def fetch_tweet():
+                    try:
+                        tweet = temp_client.get_tweet(
+                            tweet_id,
+                            tweet_fields=['created_at', 'author_id', 'public_metrics', 'lang'],
+                            user_fields=['username', 'public_metrics'],
+                            expansions=['author_id']
+                        )
+                        result['tweet'] = tweet
+                    except Exception as e:
+                        result['error'] = e
+                
+                # Start the API call in a separate thread
+                thread = threading.Thread(target=fetch_tweet)
+                thread.daemon = True
+                thread.start()
+                
+                # Wait for the thread to complete or timeout after 10 seconds
+                thread.join(timeout=10)
+                
+                if thread.is_alive():
+                    # Thread is still running, meaning it's likely stuck due to rate limiting
+                    logger.warning(f"Twitter API request timed out for tweet {tweet_id} - likely rate limited")
+                    return {
+                        'content': 'Twitter API request timed out. This is likely due to rate limiting. Please try again later.',
+                        'hashtags': [],
+                        'engagement': {'likes': 0, 'shares': 0, 'comments': 0}
+                    }
+                
+                # Check if there was an error
+                if result['error']:
+                    raise result['error']
+                
+                # Process the result
+                tweet = result['tweet']
+                if tweet and tweet.data:
                     # Extract hashtags from content
                     hashtags = []
                     content = tweet.data.text
-                    import re
                     hashtag_pattern = r'#\w+'
                     hashtags = re.findall(hashtag_pattern, content)
                     
@@ -456,6 +497,27 @@ def extract_content_from_url(url, platform):
                         'engagement': {'likes': 0, 'shares': 0, 'comments': 0}
                     }
                     
+            except tweepy.TooManyRequests:
+                logger.warning(f"Twitter API rate limit exceeded for tweet {tweet_id}")
+                return {
+                    'content': 'Twitter API rate limit exceeded. Please try again later.',
+                    'hashtags': [],
+                    'engagement': {'likes': 0, 'shares': 0, 'comments': 0}
+                }
+            except tweepy.NotFound:
+                logger.warning(f"Tweet {tweet_id} not found")
+                return {
+                    'content': 'Tweet not found or has been deleted.',
+                    'hashtags': [],
+                    'engagement': {'likes': 0, 'shares': 0, 'comments': 0}
+                }
+            except tweepy.Unauthorized:
+                logger.warning(f"Unauthorized access to tweet {tweet_id}")
+                return {
+                    'content': 'Tweet is private or access is unauthorized.',
+                    'hashtags': [],
+                    'engagement': {'likes': 0, 'shares': 0, 'comments': 0}
+                }
             except Exception as api_error:
                 logger.error(f"Twitter API error fetching tweet {tweet_id}: {str(api_error)}")
                 return {
