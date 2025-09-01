@@ -15,11 +15,11 @@ const Analytics = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="dashboard-card">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Platform Distribution
+            Twitter Content Analysis
           </h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Twitter</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Original Tweets</span>
               <div className="flex items-center space-x-2">
                 <div className="w-32 bg-gray-200 rounded-full h-2">
                   <div className="bg-blue-600 h-2 rounded-full" style={{width: '65%'}}></div>
@@ -28,19 +28,19 @@ const Analytics = () => {
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Reddit</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Retweets</span>
               <div className="flex items-center space-x-2">
                 <div className="w-32 bg-gray-200 rounded-full h-2">
-                  <div className="bg-orange-600 h-2 rounded-full" style={{width: '25%'}}></div>
+                  <div className="bg-green-600 h-2 rounded-full" style={{width: '25%'}}></div>
                 </div>
                 <span className="text-sm font-medium">25%</span>
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400">YouTube</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Replies</span>
               <div className="flex items-center space-x-2">
                 <div className="w-32 bg-gray-200 rounded-full h-2">
-                  <div className="bg-red-600 h-2 rounded-full" style={{width: '10%'}}></div>
+                  <div className="bg-purple-600 h-2 rounded-full" style={{width: '10%'}}></div>
                 </div>
                 <span className="text-sm font-medium">10%</span>
               </div>

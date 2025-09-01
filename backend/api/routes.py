@@ -9,7 +9,7 @@ from backend.db.models import Post, User, Campaign
 from backend.preprocessing.text_processor import TextProcessor
 from backend.models.classifier import SentimentClassifier
 from backend.detection.campaign_detector import CampaignDetector
-from backend.api.data_collector import DataCollector
+from backend.api.data_collector import data_collector
 import logging
 
 # Configure logging
@@ -22,7 +22,7 @@ api_bp = Blueprint('api', __name__)
 text_processor = TextProcessor()
 classifier = SentimentClassifier()
 campaign_detector = CampaignDetector()
-data_collector = DataCollector()
+# data_collector is imported from backend.api.data_collector
 
 @api_bp.route('/health', methods=['GET'])
 def health_check():
@@ -31,22 +31,110 @@ def health_check():
 
 @api_bp.route('/collect/twitter', methods=['POST'])
 def collect_twitter_data():
-    """Collect data from Twitter API (simulated)"""
+    """Collect data from Twitter API"""
     try:
         data = request.get_json()
-        keywords = data.get('keywords', ['#India'])
+        keywords = data.get('keywords', ['India', 'India government', 'Indian politics'])
         limit = data.get('limit', 10)
         
-        # Simulate data collection
+        # Collect data using Twitter API
         posts = data_collector.collect_twitter_data(keywords, limit)
+        
+        # Store posts in database if any were collected
+        stored_posts = []
+        for post_data in posts:
+            try:
+                # Classify the content
+                classification_result = classifier.classify(post_data['content'])
+                
+                # Create post in database
+                post = Post(
+                    platform=post_data['platform'],
+                    user_id=post_data.get('user_id'),
+                    content=post_data['content'],
+                    sentiment=classification_result.get('sentiment', {}).get('sentiment', 'neutral'),
+                    classification=classification_result.get('india_classification', {}).get('classification', 'Neutral'),
+                    url=f"https://twitter.com/{post_data.get('username', 'unknown')}/status/{post_data['id']}"
+                )
+                db.session.add(post)
+                stored_posts.append(post_data)
+            except Exception as store_error:
+                logger.warning(f"Failed to store post {post_data.get('id')}: {str(store_error)}")
+                continue
+        
+        if stored_posts:
+            db.session.commit()
         
         return jsonify({
             'status': 'success',
-            'message': f'Collected {len(posts)} posts from Twitter',
+            'message': f'Collected {len(posts)} posts from Twitter, stored {len(stored_posts)} in database',
             'data': posts
         })
     except Exception as e:
+        if 'db.session' in locals():
+            db.session.rollback()
         logger.error(f"Error collecting Twitter data: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@api_bp.route('/collect/dashboard', methods=['POST'])
+def collect_dashboard_data():
+    """Collect 10 recent tweets for dashboard display"""
+    try:
+        # Default keywords for India monitoring
+        keywords = ['India', 'Indian government', 'Modi', 'BJP', 'Congress', 'Delhi', 'Mumbai']
+        limit = 10
+        
+        # Collect data using Twitter API
+        posts = data_collector.collect_twitter_data(keywords, limit)
+        
+        # Process and store posts
+        processed_posts = []
+        for post_data in posts:
+            try:
+                # Classify the content
+                classification_result = classifier.classify(post_data['content'])
+                
+                # Create post in database
+                post = Post(
+                    platform=post_data['platform'],
+                    user_id=post_data.get('user_id'),
+                    content=post_data['content'],
+                    sentiment=classification_result.get('sentiment', {}).get('sentiment', 'neutral'),
+                    classification=classification_result.get('india_classification', {}).get('classification', 'Neutral'),
+                    url=f"https://twitter.com/{post_data.get('username', 'unknown')}/status/{post_data['id']}"
+                )
+                db.session.add(post)
+                processed_posts.append({
+                    'id': post_data['id'],
+                    'content': post_data['content'],
+                    'platform': post_data['platform'],
+                    'sentiment': post.sentiment,
+                    'classification': post.classification,
+                    'created_at': post_data.get('created_at'),
+                    'username': post_data.get('username'),
+                    'engagement': {
+                        'likes': post_data.get('likes', 0),
+                        'retweets': post_data.get('retweets', 0),
+                        'replies': post_data.get('replies', 0)
+                    }
+                })
+            except Exception as process_error:
+                logger.warning(f"Failed to process post {post_data.get('id')}: {str(process_error)}")
+                continue
+        
+        if processed_posts:
+            db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Collected and processed {len(processed_posts)} posts for dashboard',
+            'data': processed_posts
+        })
+        
+    except Exception as e:
+        if 'db.session' in locals():
+            db.session.rollback()
+        logger.error(f"Error collecting dashboard data: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @api_bp.route('/collect/reddit', methods=['POST'])
@@ -268,16 +356,23 @@ def analyze_url():
             'url': url
         }
         
-        # Store the analysis result
-        post = Post(
-            platform=platform,
-            content=content_data['content'],
-            sentiment=classification_result.get('sentiment', 'neutral'),
-            classification=classification_result.get('classification', 'Neutral'),
-            url=url
-        )
-        db.session.add(post)
-        db.session.commit()
+        # Store the analysis result in database
+        try:
+            post = Post(
+                platform=platform,
+                content=content_data['content'],
+                sentiment=classification_result.get('sentiment', {}).get('sentiment', 'neutral'),
+                classification=classification_result.get('india_classification', {}).get('classification', 'Neutral'),
+                url=url
+            )
+            db.session.add(post)
+            db.session.commit()
+            
+            analysis_result['post_id'] = post.id
+        except Exception as db_error:
+            db.session.rollback()
+            logger.warning(f"Failed to store post in database: {str(db_error)}")
+            # Continue without storing if database operation fails
         
         return jsonify({
             'status': 'success',
@@ -286,7 +381,8 @@ def analyze_url():
         })
         
     except Exception as e:
-        db.session.rollback()
+        if 'db.session' in locals():
+            db.session.rollback()
         logger.error(f"Error analyzing URL: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
@@ -300,31 +396,106 @@ def detect_platform_from_url(url):
     return None
 
 def extract_content_from_url(url, platform):
-    """Extract content from Twitter URL (simulated)"""
-    # In a real implementation, this would use Twitter APIs or web scraping
-    # For now, we'll simulate the content extraction for Twitter only
-    
-    twitter_sample_contents = [
-        {
-            'content': 'India is becoming a global superpower! Amazing progress in technology and space exploration. #ProudIndian #Technology #ISRO',
-            'hashtags': ['#ProudIndian', '#Technology', '#ISRO'],
-            'engagement': {'likes': 245, 'shares': 12, 'comments': 8}
-        },
-        {
-            'content': 'Another propaganda piece about India. The reality is very different from what they show. Wake up people! #Truth #Reality',
-            'hashtags': ['#Truth', '#Reality'],
-            'engagement': {'likes': 89, 'shares': 23, 'comments': 45}
-        },
-        {
-            'content': 'Today I visited the beautiful Red Fort in Delhi. The architecture is absolutely stunning! #Travel #India #Heritage',
-            'hashtags': ['#Travel', '#India', '#Heritage'],
-            'engagement': {'likes': 156, 'shares': 7, 'comments': 12}
+    """Extract content from Twitter URL using Twitter API"""
+    try:
+        if platform != 'Twitter':
+            return {
+                'content': 'Only Twitter URLs are supported for analysis.',
+                'hashtags': [],
+                'engagement': {'likes': 0, 'shares': 0, 'comments': 0}
+            }
+        
+        # Extract tweet ID from URL
+        tweet_id = extract_tweet_id_from_url(url)
+        if not tweet_id:
+            return {
+                'content': 'Could not extract tweet ID from URL.',
+                'hashtags': [],
+                'engagement': {'likes': 0, 'shares': 0, 'comments': 0}
+            }
+        
+        # Use Twitter API to fetch tweet
+        if hasattr(data_collector, 'twitter_api') and data_collector.twitter_api:
+            try:
+                # Fetch tweet using Twitter API v2
+                tweet = data_collector.twitter_api.get_tweet(
+                    tweet_id,
+                    tweet_fields=['created_at', 'author_id', 'public_metrics', 'lang'],
+                    user_fields=['username', 'public_metrics'],
+                    expansions=['author_id']
+                )
+                
+                if tweet.data:
+                    # Extract hashtags from content
+                    hashtags = []
+                    content = tweet.data.text
+                    import re
+                    hashtag_pattern = r'#\w+'
+                    hashtags = re.findall(hashtag_pattern, content)
+                    
+                    # Get engagement metrics
+                    metrics = tweet.data.public_metrics if tweet.data.public_metrics else {}
+                    engagement = {
+                        'likes': metrics.get('like_count', 0),
+                        'shares': metrics.get('retweet_count', 0),
+                        'comments': metrics.get('reply_count', 0)
+                    }
+                    
+                    return {
+                        'content': content,
+                        'hashtags': hashtags,
+                        'engagement': engagement,
+                        'created_at': tweet.data.created_at.isoformat() if tweet.data.created_at else None,
+                        'author_id': str(tweet.data.author_id) if tweet.data.author_id else None
+                    }
+                else:
+                    logger.warning(f"Tweet not found for ID: {tweet_id}")
+                    return {
+                        'content': 'Tweet not found or not accessible.',
+                        'hashtags': [],
+                        'engagement': {'likes': 0, 'shares': 0, 'comments': 0}
+                    }
+                    
+            except Exception as api_error:
+                logger.error(f"Twitter API error fetching tweet {tweet_id}: {str(api_error)}")
+                return {
+                    'content': f'Error fetching tweet from Twitter API: {str(api_error)}',
+                    'hashtags': [],
+                    'engagement': {'likes': 0, 'shares': 0, 'comments': 0}
+                }
+        else:
+            logger.warning("Twitter API not available for URL analysis")
+            return {
+                'content': 'Twitter API not configured. Cannot fetch tweet content.',
+                'hashtags': [],
+                'engagement': {'likes': 0, 'shares': 0, 'comments': 0}
+            }
+            
+    except Exception as e:
+        logger.error(f"Error extracting content from URL: {str(e)}")
+        return {
+            'content': f'Error processing URL: {str(e)}',
+            'hashtags': [],
+            'engagement': {'likes': 0, 'shares': 0, 'comments': 0}
         }
+
+def extract_tweet_id_from_url(url):
+    """Extract tweet ID from Twitter/X URL"""
+    import re
+    
+    # Patterns for Twitter URLs
+    patterns = [
+        r'twitter\.com/[^/]+/status/(\d+)',
+        r'x\.com/[^/]+/status/(\d+)',
+        r'mobile\.twitter\.com/[^/]+/status/(\d+)',
     ]
     
-    # Return a random sample content for Twitter
-    import random
-    return random.choice(twitter_sample_contents)
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    
+    return None
 
 def calculate_risk_score(classification_result, content_data):
     """Calculate risk score based on classification and engagement"""
@@ -373,39 +544,77 @@ def calculate_bot_probability(content_data):
 
 @api_bp.route('/stats', methods=['GET'])
 def get_stats():
-    """Get system statistics"""
+    """Get comprehensive statistics"""
     try:
+        # Get total counts
         total_posts = Post.query.count()
         total_users = User.query.count()
-        total_campaigns = Campaign.query.filter(Campaign.is_active == True).count()
+        total_campaigns = Campaign.query.count()
         
-        # Sentiment distribution
-        positive_posts = Post.query.filter(Post.sentiment == 'positive').count()
-        negative_posts = Post.query.filter(Post.sentiment == 'negative').count()
-        neutral_posts = Post.query.filter(Post.sentiment == 'neutral').count()
+        # Get sentiment distribution
+        sentiment_stats = db.session.query(
+            Post.sentiment,
+            db.func.count(Post.id)
+        ).group_by(Post.sentiment).all()
         
-        # Classification distribution
-        pro_india = Post.query.filter(Post.classification == 'Pro-India').count()
-        anti_india = Post.query.filter(Post.classification == 'Anti-India').count()
-        neutral_india = Post.query.filter(Post.classification == 'Neutral').count()
+        sentiment_distribution = {'positive': 0, 'negative': 0, 'neutral': 0}
+        for sentiment, count in sentiment_stats:
+            if sentiment:
+                sentiment_distribution[sentiment] = count
+        
+        # Get classification distribution
+        classification_stats = db.session.query(
+            Post.classification,
+            db.func.count(Post.id)
+        ).group_by(Post.classification).all()
+        
+        classification_distribution = {'pro_india': 0, 'anti_india': 0, 'neutral': 0}
+        for classification, count in classification_stats:
+            if classification:
+                if classification.lower() == 'pro-india':
+                    classification_distribution['pro_india'] = count
+                elif classification.lower() == 'anti-india':
+                    classification_distribution['anti_india'] = count
+                else:
+                    classification_distribution['neutral'] = count
+        
+        # Get recent activity (last 24 hours)
+        from datetime import datetime, timedelta
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        
+        posts_today = Post.query.filter(Post.created_at >= yesterday).count()
+        users_today = User.query.filter(User.created_at >= yesterday).count()
+        campaigns_today = Campaign.query.filter(Campaign.first_detected >= yesterday).count()
+        
+        # Calculate risk metrics
+        high_risk_posts = Post.query.filter(Post.classification == 'Anti-India').count()
+        flagged_users = User.query.filter(User.is_bot == True).count()
+        
+        # Simple risk score calculation
+        total_analyzed = max(total_posts, 1)  # Avoid division by zero
+        overall_risk_score = min(100, int((high_risk_posts / total_analyzed) * 100))
+        
+        stats_data = {
+            'total_posts': total_posts,
+            'total_users': total_users,
+            'total_campaigns': total_campaigns,
+            'sentiment_distribution': sentiment_distribution,
+            'classification_distribution': classification_distribution,
+            'recentActivity': {
+                'posts_today': posts_today,
+                'new_users_today': users_today,
+                'campaigns_detected_today': campaigns_today
+            },
+            'riskMetrics': {
+                'overall_risk_score': overall_risk_score,
+                'high_risk_posts': high_risk_posts,
+                'flagged_users': flagged_users
+            }
+        }
         
         return jsonify({
             'status': 'success',
-            'data': {
-                'total_posts': total_posts,
-                'total_users': total_users,
-                'total_campaigns': total_campaigns,
-                'sentiment_distribution': {
-                    'positive': positive_posts,
-                    'negative': negative_posts,
-                    'neutral': neutral_posts
-                },
-                'classification_distribution': {
-                    'pro_india': pro_india,
-                    'anti_india': anti_india,
-                    'neutral': neutral_india
-                }
-            }
+            'data': stats_data
         })
     except Exception as e:
         logger.error(f"Error fetching stats: {str(e)}")

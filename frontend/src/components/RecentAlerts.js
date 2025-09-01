@@ -31,43 +31,14 @@ const RecentAlerts = ({ posts, darkMode }) => {
     }
   };
 
-  // Sample alerts if no posts available
-  const sampleAlerts = [
-    {
-      id: 1,
-      content: "Coordinated hashtag campaign detected: #BoycottIndia trending with suspicious activity",
-      classification: "Anti-India",
-      sentiment: "negative",
-      platform: "Twitter",
-      created_at: new Date(Date.now() - 300000).toISOString() // 5 minutes ago
-    },
-    {
-      id: 2,
-      content: "Multiple bot accounts spreading anti-India propaganda detected",
-      classification: "Anti-India", 
-      sentiment: "negative",
-      platform: "Reddit",
-      created_at: new Date(Date.now() - 900000).toISOString() // 15 minutes ago
-    },
-    {
-      id: 3,
-      content: "Unusual spike in negative sentiment posts about Indian policies",
-      classification: "Neutral",
-      sentiment: "negative", 
-      platform: "Twitter",
-      created_at: new Date(Date.now() - 1800000).toISOString() // 30 minutes ago
-    }
-  ];
-
-  const alerts = posts.length > 0 ? posts : sampleAlerts;
-
   return (
     <div className="space-y-3">
-      {alerts.slice(0, 5).map((alert, index) => {
-        const alertLevel = getAlertLevel(alert.classification, alert.sentiment);
-        const alertColor = getAlertColor(alertLevel);
-        
-        return (
+      {posts.length > 0 ? (
+        posts.slice(0, 5).map((alert, index) => {
+          const alertLevel = getAlertLevel(alert.classification, alert.sentiment);
+          const alertColor = getAlertColor(alertLevel);
+          
+          return (
           <div key={alert.id || index} className="flex items-start space-x-3 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-200 backdrop-blur-sm">
             <div className={`flex-shrink-0 p-2 rounded-full ${alertColor}`}>
               <AlertTriangle className="h-4 w-4" />
@@ -92,16 +63,14 @@ const RecentAlerts = ({ posts, darkMode }) => {
             </div>
           </div>
         );
-      })}
-      
-      {alerts.length === 0 && (
+      })) : (
         <div className="text-center py-8">
           <AlertTriangle className="mx-auto h-12 w-12 text-white/40" />
           <h3 className="mt-2 text-sm font-medium text-white">
             No recent alerts
           </h3>
           <p className="mt-1 text-sm text-white/60">
-            All systems are operating normally.
+            Start monitoring to see alerts from Twitter activity.
           </p>
         </div>
       )}

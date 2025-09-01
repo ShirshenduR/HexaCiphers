@@ -11,7 +11,11 @@ const TwitterDashboard = () => {
     activeCampaigns: 0,
     highRiskUsers: 0
   });
-  const [isMonitoring, setIsMonitoring] = useState(false);
+  const [sentimentData, setSentimentData] = useState({
+    positive: 0,
+    negative: 0,
+    neutral: 0
+  });
 
   useEffect(() => {
     fetchDashboardData();
@@ -21,44 +25,88 @@ const TwitterDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [alertsRes, campaignsRes, metricsRes] = await Promise.all([
-        fetch('/api/twitter/alerts?status=active'),
-        fetch('/api/twitter/campaigns?status=active'),
-        fetch('/api/twitter/metrics')
+      const [postsRes, campaignsRes, statsRes] = await Promise.all([
+        fetch('/api/posts?limit=10'),
+        fetch('/api/campaigns'),
+        fetch('/api/stats')
       ]);
 
-      setAlerts(await alertsRes.json());
-      setCampaigns(await campaignsRes.json());
-      setMetrics(await metricsRes.json());
+      const postsData = await postsRes.json();
+      const campaignsData = await campaignsRes.json();
+      const statsData = await statsRes.json();
+
+      // Set alerts from recent posts with validation
+      if (postsData && postsData.data && Array.isArray(postsData.data)) {
+        setAlerts(postsData.data);
+      } else {
+        setAlerts([]);
+      }
+
+      // Set campaigns with validation
+      if (campaignsData && campaignsData.data && Array.isArray(campaignsData.data)) {
+        setCampaigns(campaignsData.data);
+      } else {
+        setCampaigns([]);
+      }
+      
+      // Update metrics from stats with validation
+      if (statsData && statsData.data) {
+        const stats = statsData.data;
+        setMetrics({
+          totalPosts: stats.total_posts || 0,
+          antiIndiaContent: (stats.classification_distribution && stats.classification_distribution.anti_india) || 0,
+          activeCampaigns: stats.total_campaigns || 0,
+          highRiskUsers: (stats.riskMetrics && stats.riskMetrics.flagged_users) || 0
+        });
+
+        // Update sentiment data with validation
+        const sentimentDist = stats.sentiment_distribution || {};
+        setSentimentData({
+          positive: sentimentDist.positive || 0,
+          negative: sentimentDist.negative || 0,
+          neutral: sentimentDist.neutral || 0
+        });
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      // Set default values on error
+      setAlerts([]);
+      setCampaigns([]);
+      setMetrics({
+        totalPosts: 0,
+        antiIndiaContent: 0,
+        activeCampaigns: 0,
+        highRiskUsers: 0
+      });
+      setSentimentData({
+        positive: 0,
+        negative: 0,
+        neutral: 0
+      });
     }
   };
 
   const startMonitoring = async () => {
-    const keywords = [
-      'boycott india', 'anti india', 'kashmir freedom', 'khalistan',
-      'modi dictator', 'india terrorist', 'hindu extremist'
-    ];
-
     try {
-      await fetch('/api/twitter/start-monitoring', {
+      // Use the dashboard data collection endpoint
+      await fetch('/api/collect/dashboard', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keywords })
+        headers: { 'Content-Type': 'application/json' }
       });
       setIsMonitoring(true);
+      // Refresh dashboard data after collection
+      fetchDashboardData();
     } catch (error) {
       console.error('Error starting monitoring:', error);
     }
   };
 
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case 'critical': return 'text-red-600 bg-red-100';
-      case 'high': return 'text-orange-600 bg-orange-100';
-      case 'medium': return 'text-yellow-600 bg-yellow-100';
-      default: return 'text-blue-600 bg-blue-100';
+  const getSeverityColor = (sentiment) => {
+    switch (sentiment) {
+      case 'negative': return 'text-red-600 bg-red-100';
+      case 'positive': return 'text-green-600 bg-green-100';
+      case 'neutral': return 'text-blue-600 bg-blue-100';
+      default: return 'text-gray-600 bg-gray-100';
     }
   };
 
@@ -156,26 +204,28 @@ const TwitterDashboard = () => {
               Active Alerts
             </h2>
             <div className="space-y-4 max-h-96 overflow-y-auto">
-              {alerts.map((alert, index) => (
+              {alerts && alerts.length > 0 ? alerts.map((alert, index) => (
                 <div key={index} className="border-l-4 border-red-500 pl-4 py-2">
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-medium text-gray-900 dark:text-white">
-                        {alert.title}
+                        Recent Post Alert
                       </h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        {alert.description}
+                        {typeof alert.content === 'string' ? alert.content : 'Content not available'}
                       </p>
                       <p className="text-xs text-gray-500 mt-2">
-                        {new Date(alert.created_at).toLocaleString()}
+                        {alert.created_at ? new Date(alert.created_at).toLocaleString() : 'Date not available'}
                       </p>
                     </div>
-                    <span className={`px-2 py-1 text-xs font-medium rounded ${getSeverityColor(alert.severity)}`}>
-                      {alert.severity}
+                    <span className={`px-2 py-1 text-xs font-medium rounded ${getSeverityColor(alert.sentiment || 'low')}`}>
+                      {alert.sentiment || 'unknown'}
                     </span>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <p className="text-gray-500 text-center py-4">No alerts available</p>
+              )}
             </div>
           </div>
 
@@ -184,23 +234,25 @@ const TwitterDashboard = () => {
               Detected Campaigns
             </h2>
             <div className="space-y-4 max-h-96 overflow-y-auto">
-              {campaigns.map((campaign, index) => (
+              {campaigns && campaigns.length > 0 ? campaigns.map((campaign, index) => (
                 <div key={index} className="border border-gray-200 dark:border-gray-700 rounded p-4">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-medium text-gray-900 dark:text-white">
                       {campaign.campaign_name || 'Unnamed Campaign'}
                     </h3>
                     <span className={`px-2 py-1 text-xs font-medium rounded ${getSeverityColor(campaign.severity_level)}`}>
-                      {campaign.severity_level}
+                      {campaign.severity_level || 'unknown'}
                     </span>
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <p>Participants: {campaign.participant_count}</p>
-                    <p>Hashtags: {campaign.hashtags?.join(', ')}</p>
-                    <p>Engagement: {campaign.total_engagement?.toLocaleString()}</p>
+                    <p>Participants: {campaign.participant_count || 0}</p>
+                    <p>Hashtags: {Array.isArray(campaign.hashtags) ? campaign.hashtags.join(', ') : 'N/A'}</p>
+                    <p>Engagement: {campaign.total_engagement ? campaign.total_engagement.toLocaleString() : '0'}</p>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <p className="text-gray-500 text-center py-4">No campaigns detected</p>
+              )}
             </div>
           </div>
         </div>
@@ -210,7 +262,7 @@ const TwitterDashboard = () => {
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
             Sentiment Analysis Overview
           </h2>
-          <SentimentChart />
+          <SentimentChart data={sentimentData} />
         </div>
       </div>
     </div>

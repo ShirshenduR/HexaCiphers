@@ -1,21 +1,90 @@
-version: '3'
-
 services:
-  twitter-analysis:
-    build: .
-    ports:
-      - "8050:8050"
-    volumes:
-      - ./data:/app/data
-      - ./visualizations:/app/visualizations
-      - ./alerts:/app/alerts
+  postgres:
+    image: postgres:15
+    container_name: hexaciphers-postgres
     environment:
+      POSTGRES_DB: ${POSTGRES_DB:-hexaciphers_db}
+      POSTGRES_USER: ${POSTGRES_USER:-username}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-username}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: hexaciphers-backend
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-username}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-hexaciphers_db}
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - FLASK_DEBUG=${FLASK_DEBUG:-False}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
       - TWITTER_API_KEY=${TWITTER_API_KEY}
       - TWITTER_API_SECRET=${TWITTER_API_SECRET}
       - TWITTER_ACCESS_TOKEN=${TWITTER_ACCESS_TOKEN}
       - TWITTER_ACCESS_SECRET=${TWITTER_ACCESS_SECRET}
       - TWITTER_BEARER_TOKEN=${TWITTER_BEARER_TOKEN}
-      - DEBUG=False
-      - ALERT_THRESHOLD=10
-      - ENGAGEMENT_THRESHOLD=100
-      - SCAN_INTERVAL=300
+      - REDIS_URL=redis://redis:6379/0
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./data:/app/data
+      - ./visualizations:/app/visualizations
+      - ./alerts:/app/alerts
+
+  redis:
+    image: redis:7-alpine
+    container_name: hexaciphers-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: hexaciphers-celery
+    command: celery -A backend.app.celery worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-username}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-hexaciphers_db}
+      - REDIS_URL=redis://redis:6379/0
+      - TWITTER_API_KEY=${TWITTER_API_KEY}
+      - TWITTER_API_SECRET=${TWITTER_API_SECRET}
+      - TWITTER_ACCESS_TOKEN=${TWITTER_ACCESS_TOKEN}
+      - TWITTER_ACCESS_SECRET=${TWITTER_ACCESS_SECRET}
+      - TWITTER_BEARER_TOKEN=${TWITTER_BEARER_TOKEN}
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./data:/app/data
+
+  nginx:
+    image: nginx:alpine
+    container_name: hexaciphers-nginx
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend/build:/usr/share/nginx/html
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:

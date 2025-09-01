@@ -1,45 +1,47 @@
-# Backend Dependencies
+# Production Dependencies for HexaCiphers Backend
+
+# Core Flask Dependencies
 Flask==2.3.3
 Flask-CORS==4.0.0
 Flask-SQLAlchemy==3.0.5
 Flask-Migrate==4.0.5
 psycopg2-binary==2.9.7
+
+# Environment & Configuration
 python-dotenv==1.0.0
 
-# Machine Learning & NLP
-torch==2.0.1
-transformers==4.28.1
-sentence-transformers==2.2.2
-scikit-learn==1.2.2
+# Data Processing (Essential)
+pandas==2.1.1
 numpy==1.24.3
-pandas==1.5.3
 
-# Text Processing
+# Social Media APIs
+tweepy==4.14.0
+
+# Text Processing (Minimal)
+scikit-learn==1.3.0
 nltk==3.8.1
-textblob==0.17.1
 langdetect==1.0.9
 
-# Image & Audio Processing
-Pillow==10.0.0
-pytesseract==0.3.10
-opencv-python==4.8.0.76
+# Background Tasks
+celery==5.3.1
+redis==5.0.0
 
-# Graph Analysis
-networkx==3.1
-matplotlib==3.7.1
-seaborn==0.12.2
-
-# API & Data Collection
+# HTTP & API
 requests==2.31.0
-tweepy==4.12.1
-praw==7.7.1
-beautifulsoup4==4.12.2
+aiohttp==3.8.5
+
+# Database
+SQLAlchemy==2.0.21
+alembic==1.12.0
+
+# Production Server
+gunicorn==21.2.0
 
 # Utilities
 python-dateutil==2.8.2
-celery==5.3.1
-redis==4.6.0
-plotly==5.14.1
-dash==2.9.3
-fastapi==0.95.2
-uvicorn==0.22.0
+networkx==3.1
+
+# Optional ML (commented out for minimal installation)
+# transformers==4.33.2
+# torch==2.0.1
+# plotly==5.15.0

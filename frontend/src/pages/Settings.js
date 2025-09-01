@@ -37,22 +37,17 @@ const Settings = () => {
             
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Platforms to Monitor
+                Platform Configuration
               </label>
               <div className="space-y-2">
                 <label className="flex items-center">
-                  <input type="checkbox" defaultChecked className="mr-2" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Twitter</span>
-                </label>
-                <label className="flex items-center">
-                  <input type="checkbox" defaultChecked className="mr-2" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Reddit</span>
-                </label>
-                <label className="flex items-center">
-                  <input type="checkbox" className="mr-2" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">YouTube</span>
+                  <input type="checkbox" defaultChecked disabled className="mr-2" />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Twitter/X (Active)</span>
                 </label>
               </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                Currently monitoring Twitter/X for anti-India campaigns and sentiment analysis.
+              </p>
             </div>
           </div>
         </div>

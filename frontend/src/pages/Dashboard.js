@@ -98,7 +98,7 @@ const Dashboard = ({ darkMode }) => {
           Campaign Detection Dashboard
         </h1>
         <p className="text-xl text-white/80 font-medium">
-          Real-time monitoring of anti-India campaigns on digital platforms
+          Real-time monitoring of anti-India campaigns on Twitter/X
         </p>
       </div>
 
